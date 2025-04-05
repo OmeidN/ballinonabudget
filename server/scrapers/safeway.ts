@@ -36,7 +36,6 @@ export async function scrapeSafewayWeeklyAd(): Promise<{ source: string; items: 
   console.log("🟡 Launching Puppeteer...");
   const browser = await puppeteer.launch({
     headless: false,
-    executablePath: "C:/Users/fnshn/.cache/puppeteer/chrome/win64-135.0.7049.42/chrome-win64/chrome.exe",
     args: ['--no-sandbox', '--disable-setuid-sandbox']
   });
   console.log("🟢 Puppeteer launched successfully!");
