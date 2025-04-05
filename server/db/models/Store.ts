@@ -5,6 +5,10 @@ export interface IStore extends Document {
   address: string;
   lat: number;
   lng: number;
+  location: {
+    type: 'Point';
+    coordinates: [number, number]; // [lng, lat]
+  };
   createdAt: Date;
   updatedAt: Date;
 }
@@ -27,12 +31,24 @@ const StoreSchema: Schema = new Schema({
   lng: {
     type: Number,
     required: true
+  },
+  location: {
+    type: {
+      type: String,
+      enum: ['Point'],
+      default: 'Point',
+      required: true
+    },
+    coordinates: {
+      type: [Number],
+      required: true // Must be [lng, lat]
+    }
   }
 }, {
-  timestamps: true // Adds createdAt and updatedAt
+  timestamps: true
 });
 
-// Add index for geospatial queries
-StoreSchema.index({ lat: 1, lng: 1 });
+// Add geospatial index
+StoreSchema.index({ location: '2dsphere' });
 
 export default mongoose.model<IStore>('Store', StoreSchema);

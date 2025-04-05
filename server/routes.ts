@@ -4,6 +4,8 @@ import { storage } from "./storage";
 import { calculateStrategiesSchema, insertGroceryItemSchema } from "@shared/schema";
 import { ZodError } from "zod";
 import { default as dataScraperService } from './services/data-scraper';
+import { scrapers } from './scrapers';
+import StoreModel from './db/models/Store'; 
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // API routes
@@ -105,6 +107,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to scrape store data" });
     }
   });
+
+  app.get("/api/scrape/:store", async (req, res) => {
+    const store = req.params.store.toLowerCase();
+
+    if (!scrapers[store]) {
+      return res.status(404).json({ message: `No scraper found for "${store}"` });
+    }
+
+    try {
+      const data = await scrapers[store].scrape();
+      res.json({ store, data });
+    } catch (error) {
+      console.error(`❌ Error scraping ${store}:`, error);
+      res.status(500).json({ message: `Failed to scrape ${store}` });
+    }
+  });
+
+  app.get('/api/stores/nearby', async (req, res) => {
+    const lat = parseFloat(req.query.lat as string);
+    const lng = parseFloat(req.query.lng as string);
+    const radiusInMiles = parseFloat(req.query.radius as string) || 10;
+  
+    if (isNaN(lat) || isNaN(lng)) {
+      return res.status(400).json({ message: 'Missing or invalid latitude/longitude.' });
+    }
+  
+    const radiusInMeters = radiusInMiles * 1609.34;
+  
+    try {
+      const nearbyStores = await StoreModel.find({
+        location: {
+          $near: {
+            $geometry: {
+              type: 'Point',
+              coordinates: [lng, lat],
+            },
+            $maxDistance: radiusInMeters
+          }
+        }
+      });
+  
+      res.json(nearbyStores);
+    } catch (error) {
+      console.error('Error fetching nearby stores:', error);
+      res.status(500).json({ message: 'Failed to retrieve nearby stores.' });
+    }
+  });
+  
   
   // Store initialization is now handled in index.ts
 

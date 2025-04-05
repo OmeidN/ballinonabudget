@@ -11,57 +11,23 @@ const storeUrls: { [storeName: string]: string } = {
 };
 
 /**
- * Initialize stores in the database
+ * Initialize stores in the database (clean version for scalable setup)
+ * No stores will be added here. All store creation should come from scrapers or admin routes.
  */
 export async function initializeStores(): Promise<void> {
   try {
-    // Check if stores already exist
     const storeCount = await StoreModel.countDocuments();
-    
+
     if (storeCount > 0) {
       console.log(`${storeCount} stores already exist in the database.`);
-      return;
+    } else {
+      console.log("No stores initialized. Use dynamic scrapers or admin routes to add stores.");
     }
-    
-    // Initialize sample stores
-    const sampleStores = [
-      { 
-        name: "Trader Joe's", 
-        address: "123 Main St, Atlanta, GA 30308", 
-        lat: 33.749, 
-        lng: -84.388 
-      },
-      { 
-        name: "Kroger", 
-        address: "456 Oak Ave, Atlanta, GA 30309", 
-        lat: 33.755, 
-        lng: -84.39 
-      },
-      { 
-        name: "Walmart", 
-        address: "789 Pine Blvd, Atlanta, GA 30310", 
-        lat: 33.76, 
-        lng: -84.4 
-      },
-      { 
-        name: "Publix", 
-        address: "321 Elm St, Atlanta, GA 30311", 
-        lat: 33.748, 
-        lng: -84.395 
-      }
-    ];
-    
-    for (const storeData of sampleStores) {
-      const store = new StoreModel(storeData);
-      await store.save();
-      console.log(`Store created: ${store.name}`);
-    }
-    
-    console.log('Stores initialized successfully.');
   } catch (error) {
     console.error('Error initializing stores:', error);
   }
 }
+
 
 /**
  * Scrape all stores and update product data

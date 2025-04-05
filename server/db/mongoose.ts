@@ -17,6 +17,7 @@ export function setMongoConnectionStatus(status: boolean): void {
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/grocery-optimizer';
 
 export const connectToDatabase = async (): Promise<boolean> => {
+  console.log('🔍 Loaded MONGODB_URI:', MONGODB_URI);
   if (!MONGODB_URI || MONGODB_URI === 'mongodb://localhost:27017/grocery-optimizer') {
     console.log('No MongoDB URI provided or using default local URI. Database features will be limited.');
     setMongoConnectionStatus(false);
