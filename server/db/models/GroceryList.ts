@@ -7,7 +7,7 @@ export interface IGroceryItem {
 }
 
 export interface IGroceryList extends Document {
-  userId: mongoose.Types.ObjectId;
+  userId: number; // Changed from ObjectId to number for compatibility with our schema
   name: string;
   items: IGroceryItem[];
   createdAt: Date;
@@ -33,8 +33,7 @@ const GroceryItemSchema: Schema = new Schema({
 
 const GroceryListSchema: Schema = new Schema({
   userId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
+    type: Number,
     required: true
   },
   name: {

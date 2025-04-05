@@ -12,6 +12,7 @@ import {
   Store, Product, ShoppingStrategy, StrategyItem
 } from '../../shared/schema';
 import mongoose from 'mongoose';
+import { getMongoConnectionStatus } from './mongoose';
 
 export class MongoStorage implements IStorage {
   
@@ -76,11 +77,16 @@ export class MongoStorage implements IStorage {
   
   // GROCERY ITEM OPERATIONS
   async getGroceryItems(userId: number): Promise<GroceryItem[]> {
+    // If MongoDB is not connected, don't even try to query
+    if (!getMongoConnectionStatus()) {
+      return [];
+    }
+    
     try {
       // Find the grocery list for this user
       const groceryList = await GroceryListModel.findOne({
-        userId: new mongoose.Types.ObjectId(userId.toString())
-      });
+        userId: userId
+      }).maxTimeMS(2000); // Set a maximum execution time of 2 seconds
       
       if (!groceryList) {
         return [];
@@ -129,13 +135,13 @@ export class MongoStorage implements IStorage {
     try {
       // Find the user's grocery list or create a new one
       let groceryList = await GroceryListModel.findOne({
-        userId: new mongoose.Types.ObjectId(item.userId.toString())
+        userId: item.userId
       });
       
       if (!groceryList) {
         // Create a new list for this user
         groceryList = new GroceryListModel({
-          userId: new mongoose.Types.ObjectId(item.userId.toString()),
+          userId: item.userId,
           name: 'My Shopping List',
           items: []
         });
@@ -184,8 +190,13 @@ export class MongoStorage implements IStorage {
   
   // STORE OPERATIONS
   async getStores(): Promise<Store[]> {
+    // If MongoDB is not connected, don't even try to query
+    if (!getMongoConnectionStatus()) {
+      return [];
+    }
+    
     try {
-      const stores = await StoreModel.find();
+      const stores = await StoreModel.find().maxTimeMS(2000); // Set a maximum execution time of 2 seconds
       
       return stores.map(store => ({
         id: Number(store._id),
