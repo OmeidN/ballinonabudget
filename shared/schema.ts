@@ -87,8 +87,8 @@ export const strategyItemSchema = z.object({
   productName: z.string(),
   storeName: z.string(),
   regularPrice: z.number(),
-  salePrice: z.number().optional(),
-  onSale: z.string().optional(),
+  salePrice: z.number().nullable(),
+  onSale: z.string().nullable(),
 });
 
 // Request schema for strategy calculation
