@@ -1,6 +1,10 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import dotenv from 'dotenv';
+
+// Load environment variables from .env file
+dotenv.config();
 
 const app = express();
 app.use(express.json());
@@ -37,6 +41,30 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  // Connect to MongoDB if available
+  try {
+    // Import and use the database connection
+    const { connectToDatabase } = await import('./db/mongoose');
+    const connected = await connectToDatabase();
+    
+    if (connected) {
+      console.log('MongoDB connected successfully');
+      
+      // Initialize MongoDB data if connected
+      try {
+        const { default: dataScraperService } = await import('./services/data-scraper');
+        await dataScraperService.initializeStores();
+        console.log('Store data initialized successfully');
+      } catch (initError) {
+        console.error('Failed to initialize store data:', initError);
+      }
+    } else {
+      console.log('Using in-memory storage as MongoDB connection failed');
+    }
+  } catch (error) {
+    console.error('Failed to setup database connection:', error);
+  }
+  
   const server = await registerRoutes(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {

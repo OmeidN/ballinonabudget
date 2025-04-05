@@ -87,7 +87,14 @@ export class MemStorage implements IStorage {
     
     stores.forEach(store => {
       const id = this.storeIdCounter++;
-      this.stores.set(id, { ...store, id });
+      // Ensure all required properties have non-undefined values
+      this.stores.set(id, { 
+        ...store, 
+        id,
+        address: store.address || null,
+        lat: store.lat || null,
+        lng: store.lng || null
+      });
     });
 
     // Create sample products
@@ -105,7 +112,8 @@ export class MemStorage implements IStorage {
         // Add some price variation between stores
         const variation = (storeId % 3) * 0.1;
         const regularPrice = parseFloat((product.regularPrice + variation).toFixed(2));
-        const salePrice = product.salePrice ? parseFloat((product.salePrice + variation).toFixed(2)) : undefined;
+        // Calculate salePrice or set to null if not available
+        const salePrice = product.salePrice ? parseFloat((product.salePrice + variation).toFixed(2)) : null;
         
         const id = this.productIdCounter++;
         this.products.set(id, {
@@ -113,8 +121,8 @@ export class MemStorage implements IStorage {
           name: product.name,
           storeId,
           regularPrice,
-          salePrice,
-          onSale: product.onSale
+          salePrice: salePrice || null,
+          onSale: product.onSale || null
         });
       });
     });
@@ -489,4 +497,13 @@ export class MemStorage implements IStorage {
   }
 }
 
-export const storage = new MemStorage();
+// Import the MongoDB storage implementation
+import { MongoStorage } from './db/mongo-storage';
+
+// Use MongoDB storage when a valid connection string is provided,
+// otherwise fall back to in-memory storage
+const useMongoStorage = !!process.env.MONGODB_URI;
+
+export const storage = useMongoStorage
+  ? new MongoStorage()
+  : new MemStorage();

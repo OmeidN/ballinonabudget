@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { calculateStrategiesSchema, insertGroceryItemSchema } from "@shared/schema";
 import { ZodError } from "zod";
+import { default as dataScraperService } from './services/data-scraper';
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // API routes
@@ -85,6 +86,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     }
   });
+
+  // Add a route to manually trigger data scraping (admin only in a real app)
+  app.post("/api/admin/initialize-stores", async (req, res) => {
+    try {
+      await dataScraperService.initializeStores();
+      res.json({ message: "Stores initialized successfully" });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to initialize stores" });
+    }
+  });
+  
+  app.post("/api/admin/scrape-stores", async (req, res) => {
+    try {
+      await dataScraperService.scrapeAllStores();
+      res.json({ message: "Store data scraped successfully" });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to scrape store data" });
+    }
+  });
+  
+  // Store initialization is now handled in index.ts
 
   const httpServer = createServer(app);
 
