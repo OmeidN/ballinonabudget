@@ -1,50 +1,36 @@
-// 📄 server/index.ts
-
+// server/index.ts or server.ts
+import "dotenv/config"; // Load env vars
 import express from "express";
-import dotenv from "dotenv";
-import mongoose from "mongoose";
 import cors from "cors";
-import strategyRoutes from "./routes/strategy.routes";
-
-
-import productsRouter from "./routes/products";
-
-dotenv.config();
+import mongoose from "mongoose";
+import routes from "./routes";
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+const MONGODB_URI = process.env.MONGODB_URI;
 
-// Middleware
 app.use(cors());
 app.use(express.json());
 
-// Routes
-app.use("/api/products", productsRouter);
-app.use("/api/strategies", strategyRoutes);
+// Attach routes
+app.use("/api", routes);
 
-
-// Root endpoint (optional)
-app.get("/", (req, res) => {
-  res.send("🛒 BallinOnABudget API is running");
-});
-
-// MongoDB connection
-async function startServer() {
+// Connect to MongoDB and start the server
+const startServer = async () => {
   try {
-    const uri = process.env.MONGODB_URI;
-    if (!uri) throw new Error("MONGODB_URI is missing from .env");
+    console.log("🔌 Connecting to MongoDB...");
+    if (!MONGODB_URI) throw new Error("MONGODB_URI not defined in .env");
 
-    await mongoose.connect(uri, {
-      dbName: "ballinonabudget",
-    });
+    await mongoose.connect(MONGODB_URI);
+    console.log("✅ Connected to MongoDB");
 
-    console.log("✅ MongoDB connected");
     app.listen(PORT, () => {
-      console.log(`🚀 Server running at http://localhost:${PORT}`);
+      console.log(`🚀 Server running on http://localhost:${PORT}`);
     });
   } catch (err) {
     console.error("❌ Failed to start server:", err);
+    process.exit(1);
   }
-}
+};
 
 startServer();
