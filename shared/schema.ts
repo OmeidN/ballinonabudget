@@ -1,11 +1,19 @@
-import { pgTable, text, serial, integer, doublePrecision } from "drizzle-orm/pg-core";
+import {
+  pgTable,
+  text,
+  serial,
+  integer,
+  doublePrecision,
+} from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
+// === TABLES ===
+
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
-  username: text("username").notNull().unique(),
-  password: text("password").notNull(),
+  email: text("email").notNull().unique(),
+  passwordHash: text("password_hash").notNull(),
 });
 
 export const groceryItems = pgTable("grocery_items", {
@@ -21,7 +29,7 @@ export const stores = pgTable("stores", {
   travelTime: integer("travel_time").notNull(), // in minutes
   address: text("address"),
   lat: doublePrecision("lat"),
-  lng: doublePrecision("lng")
+  lng: doublePrecision("lng"),
 });
 
 export const products = pgTable("products", {
@@ -40,13 +48,14 @@ export const shoppingStrategies = pgTable("shopping_strategies", {
   totalCost: doublePrecision("total_cost").notNull(),
   regularCost: doublePrecision("regular_cost").notNull(),
   totalTime: integer("total_time").notNull(), // in minutes
-  storeCount: integer("store_count").notNull()
+  storeCount: integer("store_count").notNull(),
 });
 
-// Define insert schemas
+// === INSERT SCHEMAS ===
+
 export const insertUserSchema = createInsertSchema(users).pick({
-  username: true,
-  password: true,
+  email: true,
+  passwordHash: true,
 });
 
 export const insertGroceryItemSchema = createInsertSchema(groceryItems).pick({
@@ -80,7 +89,8 @@ export const insertShoppingStrategySchema = createInsertSchema(shoppingStrategie
   storeCount: true,
 });
 
-// Item in a shopping strategy
+// === SCHEMAS ===
+
 export const strategyItemSchema = z.object({
   productId: z.number(),
   storeId: z.union([z.number(), z.string()]),
@@ -91,13 +101,13 @@ export const strategyItemSchema = z.object({
   onSale: z.string().nullable(),
 });
 
-// Request schema for strategy calculation
 export const calculateStrategiesSchema = z.object({
   groceryItems: z.array(z.string()),
-  userId: z.number().optional()
+  userId: z.number().optional(),
 });
 
-// Types
+// === TYPES ===
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 
@@ -109,9 +119,7 @@ export type Store = typeof stores.$inferSelect;
 
 export type InsertProduct = z.infer<typeof insertProductSchema>;
 export type Product = typeof products.$inferSelect;
-// Override for Mongo compatibility
-export type MongoProduct = Omit<Product, 'storeId'> & { storeId: string };
-
+export type MongoProduct = Omit<Product, "storeId"> & { storeId: string };
 
 export type InsertShoppingStrategy = z.infer<typeof insertShoppingStrategySchema>;
 export type ShoppingStrategy = typeof shoppingStrategies.$inferSelect;

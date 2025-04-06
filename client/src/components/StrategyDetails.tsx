@@ -3,6 +3,7 @@ import { Icon } from "./ui/icon";
 import { Button } from "@/components/ui/button";
 import {
   CalculateStrategiesResponse,
+  Coordinates,
   StrategyType,
   Store,
 } from "@/lib/types";
@@ -13,6 +14,7 @@ import {
   getStrategyDescription,
 } from "@/lib/strategies";
 import { cn } from "@/lib/utils";
+import RouteMap from "./RouteMap"; // ✅ Import the working map
 
 interface StrategyItem {
   name: string;
@@ -24,12 +26,14 @@ interface StrategyDetailsProps {
   strategies: CalculateStrategiesResponse | null;
   activeStrategy: StrategyType;
   stores: Store[];
+  coords?: Coordinates | null; // ✅ Accept user location
 }
 
 export default function StrategyDetails({
   strategies,
   activeStrategy,
   stores,
+  coords,
 }: StrategyDetailsProps) {
   if (!strategies) return null;
 
@@ -47,6 +51,10 @@ export default function StrategyDetails({
     acc[item.storeId].push(item);
     return acc;
   }, {});
+
+  const selectedStores: Store[] = Object.keys(grouped)
+    .map((storeId) => stores.find((s) => s.id.toString() === storeId))
+    .filter(Boolean) as Store[];
 
   const strategyColorClass =
     activeStrategy === "money"
@@ -134,22 +142,17 @@ export default function StrategyDetails({
         </div>
       </div>
 
-      {/* Map Placeholder */}
-      <div className="bg-white rounded-lg shadow-md overflow-hidden">
-        <div className="bg-gray-100 px-4 py-3">
-          <h2 className="font-medium">Trip Map</h2>
-        </div>
-        <div className="h-64 bg-gray-200 relative">
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="text-center">
-              <Icon name="map" className="text-4xl text-gray-400" />
-              <p className="text-gray-500 mt-2">
-                Map view will display your optimized shopping route
-              </p>
-            </div>
+      {/* ✅ Live Route Map */}
+      {coords && selectedStores.length > 0 && (
+        <div className="bg-white rounded-lg shadow-md overflow-hidden">
+          <div className="bg-gray-100 px-4 py-3">
+            <h2 className="font-medium">Shopping Route</h2>
+          </div>
+          <div className="h-64">
+            <RouteMap origin={coords} stores={selectedStores} />
           </div>
         </div>
-      </div>
+      )}
     </section>
   );
 }

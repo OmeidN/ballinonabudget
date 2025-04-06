@@ -1,45 +1,36 @@
-import mongoose, { Schema, Document } from 'mongoose';
+import mongoose, { Schema, Document } from "mongoose";
 
 export interface IUser extends Document {
-  username: string;
-  password: string; // Hashed password
-  email?: string;
+  email: string;
+  passwordHash: string;
   createdAt: Date;
 }
 
-const UserSchema: Schema = new Schema({
-  username: {
+const UserSchema = new Schema<IUser>({
+  email: {
     type: String,
     required: true,
     unique: true,
+    lowercase: true,
     trim: true,
-    minlength: 3
+    match: [/.+\@.+\..+/, "Please enter a valid email address"],
   },
-  password: {
+  passwordHash: {
     type: String,
     required: true,
-    minlength: 6
-  },
-  email: {
-    type: String,
-    trim: true,
-    lowercase: true,
-    match: [/.+\@.+\..+/, 'Please enter a valid email address']
+    minlength: 6,
   },
   createdAt: {
     type: Date,
-    default: Date.now
-  }
+    default: Date.now,
+  },
 });
 
-// Add index for faster lookups
-UserSchema.index({ username: 1 });
-
-// Method to exclude sensitive information when converting to JSON
-UserSchema.methods.toJSON = function() {
-  const userObject = this.toObject();
-  delete userObject.password;
-  return userObject;
+// Hide sensitive info in JSON responses
+UserSchema.methods.toJSON = function () {
+  const user = this.toObject();
+  delete user.passwordHash;
+  return user;
 };
 
-export default mongoose.model<IUser>('User', UserSchema);
+export default mongoose.model<IUser>("User", UserSchema);
