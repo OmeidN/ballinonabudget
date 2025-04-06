@@ -27,7 +27,8 @@ export interface IStorage {
   // Product operations
   getProducts(storeId: number): Promise<Product[]>;
   getProductsByName(name: string): Promise<Product[]>;
-  
+  searchProductsByName(query: string): Promise<Product[]>;
+
   // Strategy operations
   calculateStrategies(groceryItems: string[]): Promise<{
     moneySaver: {
@@ -190,6 +191,12 @@ export class MemStorage implements IStorage {
     );
   }
 
+  async searchProductsByName(query: string): Promise<Product[]> {
+    return Array.from(this.products.values()).filter(
+      (product) => product.name.toLowerCase().includes(query.toLowerCase())
+    );
+  }
+  
   // Strategy calculation method
   async calculateStrategies(groceryItemNames: string[]): Promise<{
     moneySaver: {

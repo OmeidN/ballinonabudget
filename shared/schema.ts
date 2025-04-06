@@ -83,7 +83,7 @@ export const insertShoppingStrategySchema = createInsertSchema(shoppingStrategie
 // Item in a shopping strategy
 export const strategyItemSchema = z.object({
   productId: z.number(),
-  storeId: z.number(),
+  storeId: z.union([z.number(), z.string()]),
   productName: z.string(),
   storeName: z.string(),
   regularPrice: z.number(),
@@ -109,6 +109,9 @@ export type Store = typeof stores.$inferSelect;
 
 export type InsertProduct = z.infer<typeof insertProductSchema>;
 export type Product = typeof products.$inferSelect;
+// Override for Mongo compatibility
+export type MongoProduct = Omit<Product, 'storeId'> & { storeId: string };
+
 
 export type InsertShoppingStrategy = z.infer<typeof insertShoppingStrategySchema>;
 export type ShoppingStrategy = typeof shoppingStrategies.$inferSelect;

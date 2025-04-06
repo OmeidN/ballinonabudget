@@ -1,9 +1,24 @@
-import { geminiService } from './index';
+import { scrapeSafeway } from '../scrapers/safeway';
 import { Store as StoreModel, Product as ProductModel, ScrapedData as ScrapedDataModel } from '../db/models';
 import mongoose from 'mongoose';
+import { geminiService } from './index';
 
-// Store URLs to scrape
+// Define types
+type ScrapedItem = {
+  name: string;
+  regularPrice: number;
+  salePrice?: number;
+  onSale?: string;
+};
+
+type ScrapedData = {
+  source: string;
+  items: ScrapedItem[];
+};
+
+// Store URLs for Gemini fallback
 const storeUrls: { [storeName: string]: string } = {
+  "Safeway": "https://www.safeway.com/",
   "Trader Joe's": "https://www.traderjoes.com/home/products/category/food-8",
   "Kroger": "https://www.kroger.com/savings/cl/weeklyad",
   "Walmart": "https://www.walmart.com/cp/grocery/131943",
@@ -11,8 +26,7 @@ const storeUrls: { [storeName: string]: string } = {
 };
 
 /**
- * Initialize stores in the database (clean version for scalable setup)
- * No stores will be added here. All store creation should come from scrapers or admin routes.
+ * Initialize stores in the database
  */
 export async function initializeStores(): Promise<void> {
   try {
@@ -28,89 +42,91 @@ export async function initializeStores(): Promise<void> {
   }
 }
 
-
 /**
  * Scrape all stores and update product data
  */
 export async function scrapeAllStores(): Promise<void> {
   try {
     const stores = await StoreModel.find();
-    
-    for (const store of stores) {
-      // Ensure we have the right type for the store
-      const typedStore = store as any;
-      const storeUrl = storeUrls[typedStore.name];
-      
+
+    for (const store of stores as (mongoose.Document & { _id: mongoose.Types.ObjectId; name: string })[]) {
+      const storeName = store.name;
+      const storeUrl = storeUrls[storeName];
+
       if (!storeUrl) {
-        console.log(`No URL configured for ${typedStore.name}, skipping...`);
+        console.log(`No URL configured for ${storeName}, skipping...`);
         continue;
       }
-      
-      console.log(`Scraping data for ${typedStore.name} from ${storeUrl}...`);
-      
-      const scrapedData = await geminiService.scrapeGroceryData(storeUrl, typedStore.name);
-      
+
+      console.log(`Scraping data for ${storeName} from ${storeUrl}...`);
+
+      let scrapedData: ScrapedData | null = null;
+
+      if (storeName.toLowerCase().includes("safeway")) {
+        const items = await scrapeSafeway() as ScrapedItem[];
+        scrapedData = {
+          source: 'safeway',
+          items
+        };
+      } else {
+        scrapedData = await geminiService.scrapeGroceryData(storeUrl, storeName);
+      }
+
       if (!scrapedData) {
-        console.log(`Failed to scrape data for ${typedStore.name}`);
+        console.log(`❌ Failed to scrape data for ${storeName}`);
         continue;
       }
-      
-      // Save the scraped data
+
       const newScrapedData = new ScrapedDataModel({
-        storeId: new mongoose.Types.ObjectId(typedStore._id.toString()),
+        storeId: store._id,
         source: scrapedData.source,
-        rawData: scrapedData,
+        rawData: scrapedData as any,
         processedData: scrapedData.items,
         scrapedAt: new Date(),
         isValid: true
       });
-      
+
       await newScrapedData.save();
-      console.log(`Saved scraped data for ${typedStore.name}`);
-      
-      // Update or create products based on scraped data
-      await updateProducts(typedStore._id.toString(), scrapedData.items);
-      
-      console.log(`Completed scraping for ${typedStore.name}`);
+      console.log(`📦 Saved scraped snapshot for ${storeName}`);
+
+      await updateProducts(store._id, scrapedData.items);
+      console.log(`✅ Completed scraping for ${storeName}`);
     }
-    
-    console.log('All stores scraped successfully');
+
+    console.log('🎉 All stores scraped successfully');
   } catch (error) {
-    console.error('Error scraping stores:', error);
+    console.error('❌ Error scraping stores:', error);
   }
 }
 
 /**
- * Update product data based on scraped items
+ * Upsert product records for a given store
  */
 async function updateProducts(
-  storeId: mongoose.Types.ObjectId | string, 
-  items: { name: string; regularPrice: number; salePrice?: number; onSale?: string }[]
+  storeId: mongoose.Types.ObjectId | string,
+  items: ScrapedItem[]
 ): Promise<void> {
-  // Convert storeId to ObjectId if it's a string
-  const storeObjectId = typeof storeId === 'string' 
+  const storeObjectId = typeof storeId === 'string'
     ? new mongoose.Types.ObjectId(storeId)
     : storeId;
+
   try {
     for (const item of items) {
-      // Check if product already exists
       const existingProduct = await ProductModel.findOne({
         storeId: storeObjectId,
         name: item.name
       });
-      
+
       if (existingProduct) {
-        // Update existing product
         existingProduct.regularPrice = item.regularPrice;
         existingProduct.salePrice = item.salePrice;
         existingProduct.onSale = item.onSale;
         existingProduct.lastUpdated = new Date();
         existingProduct.scraped = true;
-        
+
         await existingProduct.save();
-        console.log(`Updated product: ${item.name} at ${storeObjectId}`);
+        console.log(`🔁 Updated product: ${item.name}`);
       } else {
-        // Create new product
         const newProduct = new ProductModel({
           name: item.name,
           storeId: storeObjectId,
@@ -120,15 +136,15 @@ async function updateProducts(
           lastUpdated: new Date(),
           scraped: true
         });
-        
+
         await newProduct.save();
-        console.log(`Created product: ${item.name} at ${storeObjectId}`);
+        console.log(`🆕 Created product: ${item.name}`);
       }
     }
-    
-    console.log(`Updated ${items.length} products for store ${storeObjectId}`);
+
+    console.log(`✅ ${items.length} products processed for store ${storeObjectId}`);
   } catch (error) {
-    console.error('Error updating products:', error);
+    console.error('❌ Error updating products:', error);
   }
 }
 

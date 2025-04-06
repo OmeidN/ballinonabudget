@@ -1,81 +1,69 @@
 import puppeteer from 'puppeteer';
-import StoreModel from '../db/models/Store';
+import { Product as ProductModel, Store as StoreModel } from '../db/models';
 
-const safewayLocation = {
-  name: 'Safeway - Daly City',
-  address: '601 Westlake Center, Daly City, CA 94015',
-  lat: 37.6879,
-  lng: -122.4702
-};
+const CATEGORY_URLS = [
+  'https://www.safeway.com/shop/aisles/fruits-vegetables/fresh-vegetables-herbs.html?sort=&page=1&loc=3132',
+  'https://www.safeway.com/shop/aisles/fruits-vegetables/fresh-vegetables-herbs/herbs.html?sort=&page=1&loc=3132',
+  'https://www.safeway.com/shop/product-details.960138390.html'
+  // Add more categories or product detail pages here
+];
 
-async function ensureSafewayStore() {
-  const existing = await StoreModel.findOne({ name: safewayLocation.name });
-
-  if (!existing) {
-    const newStore = new StoreModel({
-      name: safewayLocation.name,
-      address: safewayLocation.address,
-      lat: safewayLocation.lat,
-      lng: safewayLocation.lng,
-      location: {
-        type: 'Point',
-        coordinates: [safewayLocation.lng, safewayLocation.lat],
-      }
+export async function scrapeSafeway(): Promise<{ source: string, items: { name: string; regularPrice: number; salePrice?: number; onSale?: string }[] }> {
+    const browser = await puppeteer.launch({
+      headless: true, // Fixes 'new' issue
+      args: ['--no-sandbox', '--disable-setuid-sandbox']
     });
-
-    await newStore.save();
-    console.log(`✅ Safeway store created at ${safewayLocation.address}`);
-  } else {
-    console.log(`⚠️ Safeway store already exists.`);
+  
+    const page = await browser.newPage();
+    const store = await StoreModel.findOne({ name: /safeway/i });
+  
+    if (!store) {
+      console.warn('⚠️ No Safeway store found in DB. Aborting scrape.');
+      await browser.close();
+      return { source: 'Safeway Scraper', items: [] };
+    }
+  
+    const products = [];
+  
+    for (const url of CATEGORY_URLS) {
+      console.log(`🔎 Scraping: ${url}`);
+      await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+  
+      const pageProducts = await page.evaluate(() => {
+        const items: any[] = [];
+        const cards = document.querySelectorAll('.product-card');
+  
+        cards.forEach(card => {
+          const name = card.querySelector('.product-title')?.textContent?.trim() ?? '';
+          const priceText = card.querySelector('.product-price')?.textContent ?? '';
+          const saleText = card.querySelector('.product-price__sale')?.textContent ?? '';
+          const salePrice = saleText ? parseFloat(saleText.replace(/[^\d.]/g, '')) : null;
+          const regularPrice = priceText ? parseFloat(priceText.replace(/[^\d.]/g, '')) : null;
+          const onSale = saleText ? 'member' : null;
+  
+          if (name && (regularPrice || salePrice)) {
+            items.push({ name, regularPrice, salePrice, onSale });
+          }
+        });
+  
+        return items;
+      });
+  
+      products.push(...pageProducts);
+      console.log(`✅ Scraped ${pageProducts.length} products from ${url}`);
+    }
+  
+    await browser.close();
+    console.log('🟢 Safeway scraping complete!');
+  
+    return {
+      source: 'Safeway Scraper',
+      items: products.map(p => ({
+        name: p.name,
+        regularPrice: p.regularPrice ?? 0,
+        salePrice: p.salePrice ?? undefined,
+        onSale: p.onSale ?? undefined
+      }))
+    };
   }
-}
-
-export async function scrapeSafewayWeeklyAd(): Promise<{ source: string; items: any[] }> {
-  await ensureSafewayStore();
-
-  console.log("🟡 Launching Puppeteer...");
-  const browser = await puppeteer.launch({
-    headless: false,
-    args: ['--no-sandbox', '--disable-setuid-sandbox']
-  });
-  console.log("🟢 Puppeteer launched successfully!");
-
-  // ✅ Reuse first tab instead of opening a new one
-  const [page] = await browser.pages();
-
-  await page.goto('https://www.safeway.com/weeklyad', { waitUntil: 'networkidle2' });
-
-  try {
-    await page.waitForSelector('input[type="tel"]', { timeout: 5000 });
-    await page.type('input[type="tel"]', '94015');
-    await page.keyboard.press('Enter');
-    await page.waitForNavigation({ waitUntil: 'networkidle2' });
-  } catch (err) {
-    console.log('✅ ZIP prompt skipped or already handled');
-  }
-
-  // Adjust selector based on what loads on the final weekly ad page
-  await page.waitForSelector('.product-details', { timeout: 15000 });
-
-  const items = await page.$$eval('.product-details', elements =>
-    elements.map(el => {
-      const name = el.querySelector('.product-title')?.textContent?.trim() || '';
-      const price = el.querySelector('.product-price')?.textContent?.trim() || '';
-      return { name, price };
-    })
-  );
-
-  console.log(`🛒 Found ${items.length} Safeway products`);
-  if (items.length > 0) {
-    console.log('🧪 First product:', items[0]);
-  }
-
-  await new Promise(res => setTimeout(res, 3000)); // optional: give time to view browser
-  console.log("🛑 Closing browser...");
-  await browser.close();
-
-  return {
-    source: 'Safeway Weekly Ad',
-    items
-  };
-}
+  

@@ -518,4 +518,30 @@ export class MongoStorage implements IStorage {
       };
     }
   }
+  async searchProductsByName(query: string): Promise<Product[]> {
+    if (!query || typeof query !== 'string') return [];
+  
+    try {
+      const results = await ProductModel.find(
+        { $text: { $search: query } },
+        { score: { $meta: 'textScore' } }
+      )
+      .sort({ score: { $meta: 'textScore' } })
+      .limit(20);
+  
+      return results.map(product => ({
+        id: Number(product._id),
+        name: product.name,
+        storeId: Number(product.storeId),
+        regularPrice: product.regularPrice,
+        salePrice: product.salePrice || null,
+        onSale: product.onSale || null
+      }));
+    } catch (err) {
+      console.error('Error during product search:', err);
+      return [];
+    }
+  }
 }
+
+

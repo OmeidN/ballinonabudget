@@ -140,5 +140,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   const httpServer = createServer(app);
+  app.get("/api/products/search", async (req, res) => {
+    const query = req.query.query as string;
+  
+    if (!query) {
+      return res.status(400).json({ message: "Missing query parameter." });
+    }
+  
+    try {
+      const results = await storage.searchProductsByName(query);
+      res.json(results);
+    } catch (error) {
+      console.error("❌ Error searching products:", error);
+      res.status(500).json({ message: "Failed to search products." });
+    }
+  });
+  
+
   return httpServer;
 }
