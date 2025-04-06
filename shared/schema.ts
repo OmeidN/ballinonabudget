@@ -141,3 +141,19 @@ export type CalculateStrategiesResponse = {
     items: { [storeId: number]: StrategyItem[] };
   };
 };
+
+// Add this below existing schemas and types
+
+export const saveStrategySchema = z.object({
+  userId: z.number(),
+  strategyType: z.enum(["money", "balanced", "time"]),
+  items: z.array(strategyItemSchema)
+});
+
+export type SaveStrategyRequest = z.infer<typeof saveStrategySchema>;
+
+export type SavedStrategyResponse = {
+  strategyId: number;
+  message: string;
+};
+

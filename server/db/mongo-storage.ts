@@ -2,6 +2,7 @@ import UserModel from "./models/User";
 import ProductModel from "./models/Product";
 import StoreModel from "./models/Store";
 import GroceryItemModel from "./models/GroceryItem";
+import ShoppingStrategyModel from "./models/ShoppingStrategy";
 
 import {
   User,
@@ -10,7 +11,10 @@ import {
   InsertGroceryItem,
   Store,
   Product,
-  CalculateStrategiesRequest,
+  StrategyItem,
+  CalculateStrategiesResponse,
+  SaveStrategyRequest,
+  SavedStrategyResponse,
 } from "../../shared/schema";
 
 export const mongoStorage = {
@@ -158,71 +162,95 @@ export const mongoStorage = {
     }));
   },
 
-  async calculateStrategies(
-    groceryItems: string[]
-  ): Promise<{
-    moneySaver: {
+  async calculateStrategies(groceryItems: string[]): Promise<CalculateStrategiesResponse> {
+    const allProducts = await ProductModel.find({
+      name: { $in: groceryItems.map(item => new RegExp(item, "i")) },
+    });
+
+    const cheapestMap: Record<string, StrategyItem> = {};
+    const oneStopMap: Record<string, StrategyItem[]> = {};
+
+    for (const product of allProducts) {
+      const price = product.salePrice ?? product.regularPrice;
+
+      if (!cheapestMap[product.name] || price < cheapestMap[product.name].salePrice!) {
+        cheapestMap[product.name] = {
+          productId: Number(product._id),
+          productName: product.name,
+          storeId: product.storeId,
+          storeName: "",
+          regularPrice: product.regularPrice,
+          salePrice: product.salePrice,
+          onSale: product.onSale,
+        };
+      }
+
+      if (!oneStopMap[product.storeId]) {
+        oneStopMap[product.storeId] = [];
+      }
+      oneStopMap[product.storeId].push({
+        productId: Number(product._id),
+        productName: product.name,
+        storeId: product.storeId,
+        storeName: "",
+        regularPrice: product.regularPrice,
+        salePrice: product.salePrice,
+        onSale: product.onSale,
+      });
+    }
+
+    const moneySaverItems = Object.values(cheapestMap);
+    const timeSaverStoreId = Object.entries(oneStopMap).sort((a, b) => b[1].length - a[1].length)[0]?.[0];
+    const timeSaverItems = timeSaverStoreId ? oneStopMap[timeSaverStoreId] : [];
+    const balancedItems = moneySaverItems.slice(0, Math.floor(moneySaverItems.length / 1.5));
+
+    const sum = (arr: StrategyItem[]) =>
+      arr.reduce((acc, item) => acc + (item.salePrice ?? item.regularPrice), 0);
+
+    const makeStrategy = (items: StrategyItem[], strategyType: string) => ({
       strategy: {
-        strategyType: string;
-        totalCost: number;
-        regularCost: number;
-        totalTime: number;
-        storeCount: number;
-      };
-      items: Record<string, any[]>;
-    };
-    balancedSaver: {
-      strategy: {
-        strategyType: string;
-        totalCost: number;
-        regularCost: number;
-        totalTime: number;
-        storeCount: number;
-      };
-      items: Record<string, any[]>;
-    };
-    timeSaver: {
-      strategy: {
-        strategyType: string;
-        totalCost: number;
-        regularCost: number;
-        totalTime: number;
-        storeCount: number;
-      };
-      items: Record<string, any[]>;
-    };
-  }> {
+        strategyType,
+        totalCost: sum(items),
+        regularCost: sum(items),
+        totalTime: items.length * 5,
+        storeCount: new Set(items.map(i => i.storeId)).size,
+      },
+      items: items.reduce((acc, item) => {
+        const id = item.storeId.toString();
+        if (!acc[id]) acc[id] = [];
+        acc[id].push(item);
+        return acc;
+      }, {} as Record<string, StrategyItem[]>),
+    });
+
     return {
-      moneySaver: {
-        strategy: {
-          strategyType: "money",
-          totalCost: 100,
-          regularCost: 120,
-          totalTime: 30,
-          storeCount: 2,
-        },
-        items: {},
-      },
-      balancedSaver: {
-        strategy: {
-          strategyType: "balanced",
-          totalCost: 110,
-          regularCost: 120,
-          totalTime: 25,
-          storeCount: 1,
-        },
-        items: {},
-      },
-      timeSaver: {
-        strategy: {
-          strategyType: "time",
-          totalCost: 115,
-          regularCost: 120,
-          totalTime: 20,
-          storeCount: 1,
-        },
-        items: {},
-      },
+      moneySaver: makeStrategy(moneySaverItems, "money"),
+      balancedSaver: makeStrategy(balancedItems, "balanced"),
+      timeSaver: makeStrategy(timeSaverItems, "time"),
+    };
+  },
+
+  async saveStrategy(data: SaveStrategyRequest): Promise<SavedStrategyResponse> {
+    const { userId, strategyType, items } = data;
+
+    const totalCost = items.reduce((sum, item) => sum + (item.salePrice ?? item.regularPrice), 0);
+    const regularCost = items.reduce((sum, item) => sum + item.regularPrice, 0);
+    const storeCount = new Set(items.map(i => i.storeId)).size;
+
+    const strategy = new ShoppingStrategyModel({
+      userId,
+      strategyType,
+      totalCost,
+      regularCost,
+      totalTime: 0,
+      storeCount,
+    });
+
+    const saved = await strategy.save();
+
+    return {
+      strategyId: Number(saved._id),
+      message: "Strategy saved successfully",
     };
   },
 };
