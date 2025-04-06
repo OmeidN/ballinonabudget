@@ -10,7 +10,7 @@ import {
 } from "../shared/schema";
 
 import { MemStorage } from "./db/memory-storage";
-import { mongoStorage } from "./db/mongo-storage"; // ✅ use the exported constant
+import { mongoStorage } from "./db/mongo-storage";
 
 export interface IStorage {
   getUser(id: number): Promise<User | undefined>;
@@ -45,7 +45,6 @@ export interface IStorage {
   }>;
 }
 
-// ✅ Decide storage engine
 const useMongo = !!process.env.MONGODB_URI;
 
 export const storage: IStorage = useMongo

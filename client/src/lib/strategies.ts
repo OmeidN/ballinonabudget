@@ -5,22 +5,11 @@ import {
   Store,
   StrategyItem,
   Coordinates,
+  ShoppingStrategyResult,
+  CalculateStrategiesRequest,
+  CalculateStrategiesResponse,
 } from "./types";
 
-// ✅ Used by frontend display and backend response
-export interface StrategyResultItem {
-  name: string;
-  storeId: string;
-  price: number;
-}
-
-export interface CalculateStrategiesResponse {
-  cheapest: StrategyResultItem[];
-  balanced: StrategyResultItem[];
-  oneStop: StrategyResultItem[];
-}
-
-// ✅ Updated to support location
 export const calculateStrategies = async (
   groceryItems: string[],
   coords?: Coordinates | null
@@ -28,7 +17,7 @@ export const calculateStrategies = async (
   const response = await apiRequest("POST", "/api/calculate-strategies", {
     groceryItems,
     location: coords ?? null,
-  });
+  } satisfies CalculateStrategiesRequest);
   return response.json();
 };
 
@@ -96,15 +85,7 @@ export const getStrategyDescription = (type: StrategyType): string => {
 };
 
 export const getStoresWithItems = (
-  result: {
-    strategy: {
-      totalCost: number;
-      regularCost: number;
-      totalTime: number;
-      storeCount: number;
-    };
-    items: { [storeId: number]: StrategyItem[] };
-  },
+  result: ShoppingStrategyResult,
   allStores: Store[]
 ): StoreWithItems[] => {
   return Object.entries(result.items).map(([storeIdStr, items]) => {
@@ -115,14 +96,14 @@ export const getStoresWithItems = (
       throw new Error(`Store with ID ${storeId} not found`);
     }
 
-    const subtotal = items.reduce(
-      (sum, item) => sum + (item.salePrice ?? item.regularPrice),
+    const subtotal = (items as StrategyItem[]).reduce(
+      (sum: number, item: StrategyItem) => sum + (item.salePrice ?? item.regularPrice),
       0
     );
 
     return {
       store,
-      items,
+      items: items as StrategyItem[],
       subtotal,
     };
   });

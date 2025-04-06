@@ -6,6 +6,7 @@ import {
   Coordinates,
   StrategyType,
   Store,
+  StrategyItem,
 } from "@/lib/types";
 import {
   formatCurrency,
@@ -14,19 +15,13 @@ import {
   getStrategyDescription,
 } from "@/lib/strategies";
 import { cn } from "@/lib/utils";
-import RouteMap from "./RouteMap"; // ✅ Import the working map
-
-interface StrategyItem {
-  name: string;
-  storeId: string;
-  price: number;
-}
+import RouteMap from "./RouteMap";
 
 interface StrategyDetailsProps {
   strategies: CalculateStrategiesResponse | null;
   activeStrategy: StrategyType;
   stores: Store[];
-  coords?: Coordinates | null; // ✅ Accept user location
+  coords?: Coordinates | null;
 }
 
 export default function StrategyDetails({
@@ -37,18 +32,25 @@ export default function StrategyDetails({
 }: StrategyDetailsProps) {
   if (!strategies) return null;
 
-  const items: StrategyItem[] =
+  const strategyData =
     activeStrategy === "money"
-      ? strategies.cheapest
+      ? strategies.moneySaver
       : activeStrategy === "time"
-      ? strategies.oneStop
-      : strategies.balanced;
+      ? strategies.timeSaver
+      : strategies.balancedSaver;
 
-  const total = items.reduce((sum, item) => sum + item.price, 0);
+  // Flatten all store item arrays into one array of items
+  const items: StrategyItem[] = Object.values(strategyData.items).flat();
+
+  const total = items.reduce(
+    (sum, item) => sum + (item.salePrice ?? item.regularPrice),
+    0
+  );
 
   const grouped = items.reduce<Record<string, StrategyItem[]>>((acc, item) => {
-    if (!acc[item.storeId]) acc[item.storeId] = [];
-    acc[item.storeId].push(item);
+    const storeId = String(item.storeId);
+    if (!acc[storeId]) acc[storeId] = [];
+    acc[storeId].push(item);
     return acc;
   }, {});
 
@@ -92,7 +94,10 @@ export default function StrategyDetails({
           <div className="flex flex-col md:flex-row gap-4 mb-4">
             {Object.entries(grouped).map(([storeId, storeItems]) => {
               const store = stores.find((s) => s.id.toString() === storeId);
-              const subtotal = storeItems.reduce((sum, i) => sum + i.price, 0);
+              const subtotal = storeItems.reduce(
+                (sum, i) => sum + (i.salePrice ?? i.regularPrice),
+                0
+              );
 
               return (
                 <div className="flex-1" key={storeId}>
@@ -107,11 +112,15 @@ export default function StrategyDetails({
                     <div className="space-y-2 text-sm">
                       {storeItems.map((item) => (
                         <div
-                          key={item.name}
+                          key={item.productId}
                           className="flex justify-between border-b pb-2 last:border-none"
                         >
-                          <span>{item.name}</span>
-                          <span>{formatCurrency(item.price)}</span>
+                          <span>{item.productName}</span>
+                          <span>
+                            {formatCurrency(
+                              item.salePrice ?? item.regularPrice
+                            )}
+                          </span>
                         </div>
                       ))}
                     </div>
@@ -129,9 +138,7 @@ export default function StrategyDetails({
             <div>
               <h3 className="font-medium">
                 Total Cost:{" "}
-                <span className="text-green-500">
-                  {formatCurrency(total)}
-                </span>
+                <span className="text-green-500">{formatCurrency(total)}</span>
               </h3>
             </div>
             <Button className={cn(strategyColorClass, "whitespace-nowrap")}>
@@ -142,7 +149,6 @@ export default function StrategyDetails({
         </div>
       </div>
 
-      {/* ✅ Live Route Map */}
       {coords && selectedStores.length > 0 && (
         <div className="bg-white rounded-lg shadow-md overflow-hidden">
           <div className="bg-gray-100 px-4 py-3">

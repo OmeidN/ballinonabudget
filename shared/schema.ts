@@ -126,3 +126,18 @@ export type ShoppingStrategy = typeof shoppingStrategies.$inferSelect;
 
 export type StrategyItem = z.infer<typeof strategyItemSchema>;
 export type CalculateStrategiesRequest = z.infer<typeof calculateStrategiesSchema>;
+
+export type CalculateStrategiesResponse = {
+  moneySaver: {
+    strategy: Omit<ShoppingStrategy, "id" | "userId">;
+    items: { [storeId: number]: StrategyItem[] };
+  };
+  balancedSaver: {
+    strategy: Omit<ShoppingStrategy, "id" | "userId">;
+    items: { [storeId: number]: StrategyItem[] };
+  };
+  timeSaver: {
+    strategy: Omit<ShoppingStrategy, "id" | "userId">;
+    items: { [storeId: number]: StrategyItem[] };
+  };
+};

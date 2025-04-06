@@ -1,6 +1,18 @@
-export interface User {
+export type StrategyType = "money" | "balanced" | "time";
+
+export interface Coordinates {
+  lat: number;
+  lng: number;
+}
+
+export interface Store {
   id: number;
-  username: string;
+  name: string;
+  distance: number;
+  travelTime: number;
+  address: string | null;
+  lat: number | null;
+  lng: number | null;
 }
 
 export interface GroceryItem {
@@ -9,69 +21,50 @@ export interface GroceryItem {
   userId: number;
 }
 
-export interface Store {
-  id: number;
-  name: string;
-  distance: number;
-  travelTime: number;
-  address?: string;
-  lat?: number;
-  lng?: number;
-}
-
 export interface Product {
   id: number;
   name: string;
   storeId: number;
   regularPrice: number;
-  salePrice?: number;
-  onSale?: string;
+  salePrice?: number | null;
+  onSale?: string | null;
+  brand?: string;
+  size?: string;
+  lastUpdated?: string;
 }
 
-export interface Coordinates {
-  lat: number;
-  lng: number;
-}
-
-
-// ✅ NEW: Flat structure used by calculate-strategies
-export interface StrategyResultItem {
-  name: string;
-  storeId: string;
-  price: number;
-}
-
-// ✅ NEW: Matches backend response shape
-export interface CalculateStrategiesResponse {
-  cheapest: StrategyResultItem[];
-  balanced: StrategyResultItem[];
-  oneStop: StrategyResultItem[];
-}
-
-export type StrategyType = "money" | "balanced" | "time";
-
-// Optional legacy types (still fine to keep around if needed)
 export interface StrategyItem {
   productId: number;
-  storeId: number;
+  storeId: number | string;
   productName: string;
   storeName: string;
   regularPrice: number;
-  salePrice?: number;
-  onSale?: string;
+  salePrice: number | null;
+  onSale: string | null;
 }
 
-export interface ShoppingStrategy {
-  strategyType: "money" | "balanced" | "time";
-  totalCost: number;
-  regularCost: number;
-  totalTime: number;
-  storeCount: number;
+export interface ShoppingStrategyResult {
+  strategy: {
+    strategyType: StrategyType;
+    totalCost: number;
+    regularCost: number;
+    totalTime: number;
+    storeCount: number;
+  };
+  items: {
+    [storeId: number]: StrategyItem[];
+  };
 }
 
-export interface StrategyResult {
-  strategy: ShoppingStrategy;
-  items: { [storeId: number]: StrategyItem[] };
+export interface CalculateStrategiesRequest {
+  groceryItems: string[];
+  location: Coordinates | null;
+}
+
+export interface CalculateStrategiesResponse {
+  moneySaver: ShoppingStrategyResult;
+  balancedSaver: ShoppingStrategyResult;
+  timeSaver: ShoppingStrategyResult;
 }
 
 export interface StoreWithItems {
