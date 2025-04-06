@@ -153,7 +153,12 @@ export const saveStrategySchema = z.object({
 export type SaveStrategyRequest = z.infer<typeof saveStrategySchema>;
 
 export type SavedStrategyResponse = {
-  strategyId: number;
-  message: string;
+  id: number;
+  userId: number;
+  strategyType: string;
+  totalCost: number;
+  regularCost: number;
+  totalTime: number;
+  storeCount: number;
 };
 

@@ -1,52 +1,10 @@
-// server/storage.ts
-
-import {
-  users, type User, type InsertUser,
-  groceryItems, type GroceryItem, type InsertGroceryItem,
-  stores, type Store, type InsertStore,
-  products, type Product, type InsertProduct,
-  shoppingStrategies, type ShoppingStrategy, type InsertShoppingStrategy,
-  type StrategyItem
-} from "../shared/schema";
-
-import { MemStorage } from "./db/memory-storage";
+import { IStorage } from "./types";
 import { mongoStorage } from "./db/mongo-storage";
+import { MemStorage } from "./db/memory-storage";
+import { USE_MONGO } from "./env";
 
-export interface IStorage {
-  getUser(id: number): Promise<User | undefined>;
-  getUserByUsername(username: string): Promise<User | undefined>;
-  createUser(user: InsertUser): Promise<User>;
+// Ensure both branches conform to IStorage
+const memoryStorage = new MemStorage();
 
-  getGroceryItems(userId: number): Promise<GroceryItem[]>;
-  getGroceryItem(id: number): Promise<GroceryItem | undefined>;
-  createGroceryItem(item: InsertGroceryItem): Promise<GroceryItem>;
-  deleteGroceryItem(id: number): Promise<boolean>;
-
-  getStores(): Promise<Store[]>;
-  getStore(id: number): Promise<Store | undefined>;
-
-  getProducts(storeId: number): Promise<Product[]>;
-  getProductsByName(name: string): Promise<Product[]>;
-  searchProductsByName(query: string): Promise<Product[]>;
-
-  calculateStrategies(groceryItems: string[]): Promise<{
-    moneySaver: {
-      strategy: Omit<ShoppingStrategy, "id" | "userId">;
-      items: { [storeId: number]: StrategyItem[] };
-    };
-    balancedSaver: {
-      strategy: Omit<ShoppingStrategy, "id" | "userId">;
-      items: { [storeId: number]: StrategyItem[] };
-    };
-    timeSaver: {
-      strategy: Omit<ShoppingStrategy, "id" | "userId">;
-      items: { [storeId: number]: StrategyItem[] };
-    };
-  }>;
-}
-
-const useMongo = !!process.env.MONGODB_URI;
-
-export const storage: IStorage = useMongo
-  ? mongoStorage
-  : new MemStorage();
+export const storage: IStorage =
+  USE_MONGO === "true" ? mongoStorage : memoryStorage;

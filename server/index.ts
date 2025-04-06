@@ -4,6 +4,8 @@ import express from "express";
 import dotenv from "dotenv";
 import mongoose from "mongoose";
 import cors from "cors";
+import strategyRoutes from "./routes/strategy.routes";
+
 
 import productsRouter from "./routes/products";
 
@@ -18,6 +20,8 @@ app.use(express.json());
 
 // Routes
 app.use("/api/products", productsRouter);
+app.use("/api/strategies", strategyRoutes);
+
 
 // Root endpoint (optional)
 app.get("/", (req, res) => {
