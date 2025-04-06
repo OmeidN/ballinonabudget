@@ -7,6 +7,8 @@ import Home from "@/pages/Home";
 import Lists from "@/pages/Lists";
 import Stores from "@/pages/Stores";
 import Profile from "@/pages/Profile";
+import ProductSearch from "./components/ProductSearch";
+
 
 function Router() {
   return (
@@ -20,12 +22,13 @@ function Router() {
   );
 }
 
+
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <Router />
-      <Toaster />
-    </QueryClientProvider>
+    <div className="p-4">
+      <h1 className="text-xl font-bold">🛒 BallinOnABudget</h1>
+      <ProductSearch />
+    </div>
   );
 }
 

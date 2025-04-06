@@ -3,9 +3,9 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { calculateStrategiesSchema, insertGroceryItemSchema } from "@shared/schema";
 import { ZodError } from "zod";
-import { default as dataScraperService } from './services/data-scraper';
-import { scrapers } from './scrapers';
-import StoreModel from './db/models/Store';
+import * as dataScraperService from "./services/data-scraper";
+import { scrapers } from "./scrapers";
+import StoreModel from "./db/models/Store";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/grocery-items", async (req, res) => {
@@ -140,6 +140,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   const httpServer = createServer(app);
+
   app.get("/api/products/search", async (req, res) => {
     const query = req.query.query as string;
   
@@ -155,7 +156,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to search products." });
     }
   });
-  
 
   return httpServer;
 }

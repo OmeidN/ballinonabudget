@@ -7,29 +7,44 @@ import StrategySwitcher from "@/components/StrategySwitcher";
 import StrategyDetails from "@/components/StrategyDetails";
 import BottomNavigation from "@/components/BottomNavigation";
 import { calculateStrategies } from "@/lib/strategies";
-import { CalculateStrategiesResponse, GroceryItem, StrategyType } from "@/lib/types";
+import {
+  CalculateStrategiesResponse,
+  GroceryItem,
+  StrategyType,
+  Store,
+} from "@/lib/types";
 
 export default function Home() {
   const [activeStrategy, setActiveStrategy] = useState<StrategyType>("balanced");
   const [strategies, setStrategies] = useState<CalculateStrategiesResponse | null>(null);
   const { toast } = useToast();
 
-  // Fetch grocery items
-  const { 
-    data: groceryItems = [], 
+  // ✅ Fetch grocery items
+  const {
+    data: groceryItems = [],
     isLoading: isLoadingItems,
     error: itemsError,
-  } = useQuery({
+  } = useQuery<GroceryItem[]>({
     queryKey: ["/api/grocery-items"],
+    queryFn: async () => {
+      const res = await fetch("/api/grocery-items");
+      if (!res.ok) throw new Error("Failed to fetch grocery items");
+      return res.json();
+    },
   });
 
-  // Fetch stores
+  // ✅ Fetch stores
   const {
     data: stores = [],
     isLoading: isLoadingStores,
     error: storesError,
-  } = useQuery({
+  } = useQuery<Store[]>({
     queryKey: ["/api/stores"],
+    queryFn: async () => {
+      const res = await fetch("/api/stores");
+      if (!res.ok) throw new Error("Failed to fetch stores");
+      return res.json();
+    },
   });
 
   // Mutation for calculating strategies
@@ -66,7 +81,7 @@ export default function Home() {
       });
       return;
     }
-    
+
     calculateStrategiesMutation();
   };
 
@@ -74,7 +89,7 @@ export default function Home() {
     setActiveStrategy(type);
   };
 
-  // Check for errors
+  // Global error toast
   if (itemsError || storesError) {
     toast({
       title: "Error loading data",
@@ -86,23 +101,23 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-gray-50 pb-16 md:pb-6">
       <AppHeader notificationCount={3} />
-      
+
       <main className="container mx-auto px-4 py-6">
-        <GroceryListInput 
-          groceryItems={groceryItems} 
+        <GroceryListInput
+          groceryItems={groceryItems}
           isLoading={isCalculating}
-          onCalculateStrategies={handleCalculateStrategies} 
+          onCalculateStrategies={handleCalculateStrategies}
         />
-        
+
         {strategies && (
           <>
-            <StrategySwitcher 
+            <StrategySwitcher
               strategies={strategies}
               activeStrategy={activeStrategy}
               onStrategyChange={handleStrategyChange}
             />
-            
-            <StrategyDetails 
+
+            <StrategyDetails
               strategies={strategies}
               activeStrategy={activeStrategy}
               stores={stores}
@@ -110,7 +125,7 @@ export default function Home() {
           </>
         )}
       </main>
-      
+
       <BottomNavigation activeTab="home" />
     </div>
   );
