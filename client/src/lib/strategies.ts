@@ -1,11 +1,33 @@
 import { apiRequest } from "./queryClient";
-import { CalculateStrategiesResponse, StrategyType, StoreWithItems, Store, StrategyItem } from "./types";
+import {
+  StrategyType,
+  StoreWithItems,
+  Store,
+  StrategyItem,
+  Coordinates,
+} from "./types";
 
+// ✅ Used by frontend display and backend response
+export interface StrategyResultItem {
+  name: string;
+  storeId: string;
+  price: number;
+}
+
+export interface CalculateStrategiesResponse {
+  cheapest: StrategyResultItem[];
+  balanced: StrategyResultItem[];
+  oneStop: StrategyResultItem[];
+}
+
+// ✅ Updated to support location
 export const calculateStrategies = async (
-  groceryItems: string[]
+  groceryItems: string[],
+  coords?: Coordinates | null
 ): Promise<CalculateStrategiesResponse> => {
   const response = await apiRequest("POST", "/api/calculate-strategies", {
     groceryItems,
+    location: coords ?? null,
   });
   return response.json();
 };
@@ -85,25 +107,23 @@ export const getStoresWithItems = (
   },
   allStores: Store[]
 ): StoreWithItems[] => {
-  // Convert items object to array of StoreWithItems
   return Object.entries(result.items).map(([storeIdStr, items]) => {
     const storeId = parseInt(storeIdStr);
     const store = allStores.find((s) => s.id === storeId);
-    
+
     if (!store) {
       throw new Error(`Store with ID ${storeId} not found`);
     }
-    
-    // Calculate subtotal for this store
+
     const subtotal = items.reduce(
       (sum, item) => sum + (item.salePrice ?? item.regularPrice),
       0
     );
-    
+
     return {
       store,
       items,
-      subtotal
+      subtotal,
     };
   });
 };

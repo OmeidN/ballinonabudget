@@ -7,6 +7,7 @@ import StrategySwitcher from "@/components/StrategySwitcher";
 import StrategyDetails from "@/components/StrategyDetails";
 import BottomNavigation from "@/components/BottomNavigation";
 import { calculateStrategies } from "@/lib/strategies";
+import { useGeolocation } from "@/hooks/useGeolocation";
 import {
   CalculateStrategiesResponse,
   GroceryItem,
@@ -18,8 +19,8 @@ export default function Home() {
   const [activeStrategy, setActiveStrategy] = useState<StrategyType>("balanced");
   const [strategies, setStrategies] = useState<CalculateStrategiesResponse | null>(null);
   const { toast } = useToast();
+  const { coords, loading: geoLoading, error: geoError } = useGeolocation();
 
-  // ✅ Fetch grocery items
   const {
     data: groceryItems = [],
     isLoading: isLoadingItems,
@@ -33,7 +34,6 @@ export default function Home() {
     },
   });
 
-  // ✅ Fetch stores
   const {
     data: stores = [],
     isLoading: isLoadingStores,
@@ -47,14 +47,13 @@ export default function Home() {
     },
   });
 
-  // Mutation for calculating strategies
   const {
     mutate: calculateStrategiesMutation,
     isPending: isCalculating,
   } = useMutation({
     mutationFn: async () => {
       const itemNames = groceryItems.map((item: GroceryItem) => item.name);
-      return calculateStrategies(itemNames);
+      return calculateStrategies(itemNames, coords); // ✅ location now included
     },
     onSuccess: (data) => {
       setStrategies(data);
@@ -89,7 +88,6 @@ export default function Home() {
     setActiveStrategy(type);
   };
 
-  // Global error toast
   if (itemsError || storesError) {
     toast({
       title: "Error loading data",
@@ -105,9 +103,15 @@ export default function Home() {
       <main className="container mx-auto px-4 py-6">
         <GroceryListInput
           groceryItems={groceryItems}
-          isLoading={isCalculating}
+          isLoading={isCalculating || geoLoading}
           onCalculateStrategies={handleCalculateStrategies}
         />
+
+        {geoError && (
+          <div className="text-red-500 mt-2 text-sm">
+            Location error: {geoError}
+          </div>
+        )}
 
         {strategies && (
           <>

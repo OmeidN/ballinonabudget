@@ -28,6 +28,29 @@ export interface Product {
   onSale?: string;
 }
 
+export interface Coordinates {
+  lat: number;
+  lng: number;
+}
+
+
+// ✅ NEW: Flat structure used by calculate-strategies
+export interface StrategyResultItem {
+  name: string;
+  storeId: string;
+  price: number;
+}
+
+// ✅ NEW: Matches backend response shape
+export interface CalculateStrategiesResponse {
+  cheapest: StrategyResultItem[];
+  balanced: StrategyResultItem[];
+  oneStop: StrategyResultItem[];
+}
+
+export type StrategyType = "money" | "balanced" | "time";
+
+// Optional legacy types (still fine to keep around if needed)
 export interface StrategyItem {
   productId: number;
   storeId: number;
@@ -50,14 +73,6 @@ export interface StrategyResult {
   strategy: ShoppingStrategy;
   items: { [storeId: number]: StrategyItem[] };
 }
-
-export interface CalculateStrategiesResponse {
-  moneySaver: StrategyResult;
-  balancedSaver: StrategyResult;
-  timeSaver: StrategyResult;
-}
-
-export type StrategyType = "money" | "balanced" | "time";
 
 export interface StoreWithItems {
   store: Store;
