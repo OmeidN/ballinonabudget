@@ -1,136 +1,54 @@
-import React, { useState } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
-import { useToast } from "@/hooks/use-toast";
-import AppHeader from "@/components/AppHeader";
+// client/src/pages/Home.tsx
+import { useState } from "react";
+import { calculateStrategies } from "@/lib/strategies";
+import { StrategyType, CalculateStrategiesResponse } from "@/lib/types";
+
 import GroceryListInput from "@/components/GroceryListInput";
 import StrategySwitcher from "@/components/StrategySwitcher";
 import StrategyDetails from "@/components/StrategyDetails";
-import BottomNavigation from "@/components/BottomNavigation";
-import { calculateStrategies } from "@/lib/strategies";
-import { useGeolocation } from "@/hooks/useGeolocation";
-import {
-  CalculateStrategiesResponse,
-  GroceryItem,
-  StrategyType,
-  Store,
-} from "@/lib/types";
 
 export default function Home() {
-  const [activeStrategy, setActiveStrategy] = useState<StrategyType>("balanced");
+  const [list, setList] = useState<string[]>([]);
+  const [activeStrategy, setActiveStrategy] = useState<StrategyType>("money");
   const [strategies, setStrategies] = useState<CalculateStrategiesResponse | null>(null);
-  const { toast } = useToast();
-  const { coords, loading: geoLoading, error: geoError } = useGeolocation();
+  const [loading, setLoading] = useState(false);
 
-  const {
-    data: groceryItems = [],
-    isLoading: isLoadingItems,
-    error: itemsError,
-  } = useQuery<GroceryItem[]>({
-    queryKey: ["/api/grocery-items"],
-    queryFn: async () => {
-      const res = await fetch("/api/grocery-items");
-      if (!res.ok) throw new Error("Failed to fetch grocery items");
-      return res.json();
-    },
-  });
-
-  const {
-    data: stores = [],
-    isLoading: isLoadingStores,
-    error: storesError,
-  } = useQuery<Store[]>({
-    queryKey: ["/api/stores"],
-    queryFn: async () => {
-      const res = await fetch("/api/stores");
-      if (!res.ok) throw new Error("Failed to fetch stores");
-      return res.json();
-    },
-  });
-
-  const {
-    mutate: calculateStrategiesMutation,
-    isPending: isCalculating,
-  } = useMutation({
-    mutationFn: async () => {
-      const itemNames = groceryItems.map((item: GroceryItem) => item.name);
-      return calculateStrategies(itemNames, coords); // ✅ location now included
-    },
-    onSuccess: (data) => {
-      setStrategies(data);
-      toast({
-        title: "Strategies calculated",
-        description: "We found the best shopping options for your list.",
-      });
-    },
-    onError: () => {
-      toast({
-        title: "Calculation failed",
-        description: "We couldn't calculate strategies. Please try again.",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const handleCalculateStrategies = () => {
-    if (groceryItems.length === 0) {
-      toast({
-        title: "Empty grocery list",
-        description: "Please add at least one item to your grocery list.",
-        variant: "destructive",
-      });
-      return;
+  const handleGenerateStrategies = async () => {
+    if (list.length === 0) return;
+    setLoading(true);
+    try {
+      const result = await calculateStrategies(list);
+      setStrategies(result);
+    } catch (error) {
+      console.error("Error generating strategies:", error);
+    } finally {
+      setLoading(false);
     }
-
-    calculateStrategiesMutation();
   };
-
-  const handleStrategyChange = (type: StrategyType) => {
-    setActiveStrategy(type);
-  };
-
-  if (itemsError || storesError) {
-    toast({
-      title: "Error loading data",
-      description: "There was an error loading the application data.",
-      variant: "destructive",
-    });
-  }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-16 md:pb-6">
-      <AppHeader notificationCount={3} />
+    <main className="p-4 max-w-4xl mx-auto">
+      <h1 className="text-3xl font-bold mb-4">Smart Shopper</h1>
 
-      <main className="container mx-auto px-4 py-6">
-        <GroceryListInput
-          groceryItems={groceryItems}
-          isLoading={isCalculating || geoLoading}
-          onCalculateStrategies={handleCalculateStrategies}
-        />
+      <GroceryListInput
+        list={list}
+        setList={setList}
+        onGenerate={handleGenerateStrategies}
+        loading={loading}
+      />
 
-        {geoError && (
-          <div className="text-red-500 mt-2 text-sm">
-            Location error: {geoError}
-          </div>
-        )}
+      {strategies && (
+        <>
+          <StrategySwitcher
+            activeStrategy={activeStrategy}
+            onChange={setActiveStrategy}
+          />
 
-        {strategies && (
-          <>
-            <StrategySwitcher
-              strategies={strategies}
-              activeStrategy={activeStrategy}
-              onStrategyChange={handleStrategyChange}
-            />
-
-            <StrategyDetails
-              strategies={strategies}
-              activeStrategy={activeStrategy}
-              stores={stores}
-            />
-          </>
-        )}
-      </main>
-
-      <BottomNavigation activeTab="home" />
-    </div>
+          <StrategyDetails
+            strategy={strategies[activeStrategy as keyof CalculateStrategiesResponse]}
+          />
+        </>
+      )}
+    </main>
   );
 }
